@@ -5,7 +5,6 @@ export default async function handler(req, res) {
     }
 
     const { text, voice } = req.body || {};
-
     if (!text) {
       return res.status(400).json({ error: 'Missing text' });
     }
@@ -16,17 +15,19 @@ export default async function handler(req, res) {
     }
 
     const dashscopeResp = await fetch(
-      'https://dashscope.aliyuncs.com/api/v1/services/speech/synthesis',
+      'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-to-speech',
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
-          Accept: 'audio/wav'
+          Accept: 'application/json'
         },
         body: JSON.stringify({
-          model: 'qwen-tts-v1',
-          input: { text },
+          model: 'qwen-tts',
+          input: {
+            text: text
+          },
           parameters: {
             voice: mapVoice(voice),
             format: 'wav',
@@ -38,15 +39,18 @@ export default async function handler(req, res) {
       }
     );
 
-    if (!dashscopeResp.ok) {
-      const errText = await dashscopeResp.text();
+    const json = await dashscopeResp.json();
+
+    if (!json.output || !json.output.audio) {
       return res.status(500).json({
         error: 'DashScope TTS failed',
-        detail: errText
+        detail: json
       });
     }
 
-    const audioBuffer = await dashscopeResp.arrayBuffer();
+    // 👇 关键：base64 → buffer
+    const audioBase64 = json.output.audio;
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
 
     res.setHeader('Content-Type', 'audio/wav');
     res.setHeader(
@@ -54,7 +58,7 @@ export default async function handler(req, res) {
       'inline; filename="speech.wav"'
     );
 
-    return res.status(200).send(Buffer.from(audioBuffer));
+    return res.status(200).send(audioBuffer);
   } catch (err) {
     return res.status(500).json({
       error: 'Server error',
