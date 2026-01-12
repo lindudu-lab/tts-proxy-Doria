@@ -14,18 +14,16 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Missing DASHSCOPE_API_KEY' });
     }
 
-    const dashscopeResp = await fetch(
-      'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-to-speech',
+    const resp = await fetch(
+      'https://dashscope.aliyuncs.com/api/v1/services/speech/synthesis',
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-          Accept: 'application/json'
+          Authorization: `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'qwen-tts',
-          task: 'text_to_speech',   // ✅ 关键字段
+          model: 'qwen-tts-v1',
           input: {
             text: text
           },
@@ -40,7 +38,7 @@ export default async function handler(req, res) {
       }
     );
 
-    const json = await dashscopeResp.json();
+    const json = await resp.json();
 
     if (!json.output || !json.output.audio) {
       return res.status(500).json({
@@ -52,10 +50,7 @@ export default async function handler(req, res) {
     const audioBuffer = Buffer.from(json.output.audio, 'base64');
 
     res.setHeader('Content-Type', 'audio/wav');
-    res.setHeader(
-      'Content-Disposition',
-      'inline; filename="speech.wav"'
-    );
+    res.setHeader('Content-Disposition', 'inline; filename="speech.wav"');
 
     return res.status(200).send(audioBuffer);
   } catch (err) {
