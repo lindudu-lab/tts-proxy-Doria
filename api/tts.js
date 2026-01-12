@@ -25,6 +25,7 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           model: 'qwen-tts',
+          task: 'text_to_speech',   // ✅ 关键字段
           input: {
             text: text
           },
@@ -48,9 +49,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 👇 关键：base64 → buffer
-    const audioBase64 = json.output.audio;
-    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    const audioBuffer = Buffer.from(json.output.audio, 'base64');
 
     res.setHeader('Content-Type', 'audio/wav');
     res.setHeader(
