@@ -1,0 +1,69 @@
+{
+  "name": "tts-proxy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { text, voice } = req.body || {};
+
+  if (!text) {
+    return res.status(400).json({ error: 'Missing text' });
+  }
+
+  try {
+    const dashscopeRes = await fetch(
+      'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-to-speech',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.DASHSCOPE_API_KEY}`,
+          'X-DashScope-SSE': 'disable'
+        },
+        body: JSON.stringify({
+          model: 'qwen-tts',
+          input: { text },
+          parameters: {
+            voice: mapVoice(voice),
+            format: 'wav',
+            rate: 0.9,
+            pitch: 1.0,
+            volume: 1.0
+          }
+        })
+      }
+    );
+
+    const json = await dashscopeRes.json();
+
+    if (!json.output?.audio?.data) {
+      return res.status(500).json({ error: 'TTS failed', raw: json });
+    }
+
+    res.status(200).json({
+      audioBase64: json.output.audio.data
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+function mapVoice(voice) {
+  const voices = {
+    adult_female: 'xiaoyun',
+    child: 'xiaoxiao'
+  };
+  return voices[voice] || 'xiaoyun';
+}
